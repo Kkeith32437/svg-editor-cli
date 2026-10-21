@@ -1,0 +1,14 @@
+{
+  "name": "svg-editor-cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "cli": "tsx src/cli/Main.ts",
+    "test": "tsx --test test/*.test.ts",
+    "check": "npm run build && npm test"
+  },
+  "dependencies": { "@xmldom/xmldom": "^0.8.11" },
+  "devDependencies": { "@types/node": "^24.0.0", "tsx": "^4.20.0", "typescript": "^5.9.0" }
+}
