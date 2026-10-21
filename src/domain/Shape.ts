@@ -1,15 +1,17 @@
 export abstract class Shape {
   private readonly values = new Map<string, string>();
   protected abstract readonly geometry: readonly string[];
+  protected readonly contentAttributes: readonly string[] = [];
   constructor(public readonly id: string, public readonly type: string) {
     if (!id || /\s/.test(id)) throw new Error('id must be nonempty and contain no whitespace');
   }
   get children(): readonly Shape[] { return []; }
   get isContainer(): boolean { return false; }
+  get content(): string | undefined { return undefined; }
   get attributes(): ReadonlyMap<string, string> { return new Map(this.values); }
   get(attr: string): string | undefined { return this.values.get(attr); }
   set(attr: string, value: string): void {
-    if (![...this.geometry, 'fill', 'stroke', 'stroke-width', ...(this.type === 'text' ? ['text'] : [])].includes(attr)) {
+    if (![...this.geometry, 'fill', 'stroke', 'stroke-width', ...this.contentAttributes].includes(attr)) {
       throw new Error(`unknown attribute: ${attr}`);
     }
     if (this.geometry.includes(attr) || attr === 'stroke-width') {

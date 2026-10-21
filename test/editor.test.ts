@@ -152,3 +152,33 @@ test('CLI processes script input, emits one-line errors and continues', () => {
   const result = spawnSync(process.execPath, ['--import', 'tsx', 'src/cli/Main.ts'], { cwd: process.cwd(), input: '# comment\ninit\ncreate rect r 1 2 3 4\nscale r 0\nshow r\n', encoding: 'utf8' });
   assert.equal(result.status, 0, result.stderr); assert.match(result.stdout, /error: scale factor must be positive/); assert.match(result.stdout, /width="3"/); assert.doesNotMatch(result.stdout, /svg>/);
 });
+
+test('every shape supports its geometry whitelist and styles; other attributes fail', () => {
+  const factory = new ShapeFactory();
+  for (const [type, args, geometry] of [
+    ['rect', ['1', '2', '3', '4'], ['x', 'y', 'width', 'height']],
+    ['circle', ['1', '2', '3'], ['cx', 'cy', 'r']],
+    ['ellipse', ['1', '2', '3', '4'], ['cx', 'cy', 'rx', 'ry']],
+    ['line', ['1', '2', '3', '4'], ['x1', 'y1', 'x2', 'y2']],
+    ['text', ['1', '2', 'hello'], ['x', 'y']], ['g', [], []]
+  ] as [string, string[], string[]][]) {
+    const shape = factory.create(type, 's', args);
+    for (const attr of geometry) { shape.set(attr, '5'); assert.equal(shape.get(attr), '5'); }
+    for (const attr of ['fill', 'stroke', 'stroke-width']) shape.set(attr, attr === 'stroke-width' ? '2' : '#f00');
+    assert.throws(() => shape.set('bogus', '1'), /unknown attribute/);
+    if (type !== 'text') assert.throws(() => shape.set('text', 'wrong'), /unknown attribute/);
+    if (type !== 'g') {
+      shape.scale(2); for (const attr of geometry) assert.equal(shape.get(attr), '10');
+      assert.equal(shape.get('stroke-width'), '2');
+    }
+  }
+});
+
+test('rejects unsupported root rendering semantics rather than silently changing appearance', () => {
+  const codec = new SvgCodec();
+  assert.throws(() => codec.decode('<svg width="100" height="100" viewBox="10 20 50 50"/>'), /unsupported viewBox/);
+  assert.throws(() => codec.decode('<svg fill="red"/>'), /unsupported SVG root attribute/);
+  assert.equal(codec.decode('<svg width="100" height="100" viewBox="0,0,100,100"/>').document.width, 100);
+  const fallback = codec.decode('<svg><g id="box" data-kind="box"><rect id="part"/></g></svg>');
+  assert.equal(fallback.document.find('box').type, 'g');
+});

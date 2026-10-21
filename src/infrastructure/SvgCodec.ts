@@ -11,6 +11,15 @@ export class SvgCodec {
     const root = xml.documentElement;
     if (errors.length || !root || root.tagName !== 'svg' || (root.namespaceURI && root.namespaceURI !== 'http://www.w3.org/2000/svg')) throw new Error('invalid SVG document');
     const document = new Document(Number(root.getAttribute('width') || 800), Number(root.getAttribute('height') || 600));
+    for (const attr of Array.from(root.attributes)) {
+      if (!['xmlns', 'width', 'height', 'viewBox'].includes(attr.name)) throw new Error(`unsupported SVG root attribute: ${attr.name}`);
+    }
+    if (root.hasAttribute('viewBox')) {
+      const box = root.getAttribute('viewBox')!.trim().split(/[\s,]+/).map(Number);
+      if (box.length !== 4 || box.some((value, index) => value !== [0, 0, document.width, document.height][index])) {
+        throw new Error('unsupported viewBox: expected 0 0 width height');
+      }
+    }
     const used = new Set<string>(), reserved = new Set<string>(), warnings: string[] = [];
     for (const element of Array.from(root.getElementsByTagName('*'))) {
       const id = element.getAttribute('id');
@@ -37,7 +46,7 @@ export class SvgCodec {
           if (child.nodeType === 1) shape.insert(parse(child as Element));
           else if (child.nodeType === 3 && child.textContent?.trim()) throw new Error('unexpected text inside group');
         }
-      } else if (type === 'text') {
+      } else if (shape.content !== undefined) {
         if (Array.from(element.childNodes).some(child => child.nodeType === 1)) throw new Error('nested text elements are unsupported');
         shape.set('text', element.textContent ?? '');
       } else if (Array.from(element.childNodes).some(child => child.nodeType === 1)) throw new Error(`unexpected children in ${type}`);
