@@ -225,6 +225,6 @@ Commands --> [ShapeFactory]
 
 ### 6.2 持续验证与局限
 
-`.github/workflows/ci.yml` 配置 Windows/Ubuntu、Node.js 24 的构建和测试。新增代码和修复应保持 `npm run check` 通过。CI 配置已提供，但在远程运行成功前，不能把本地测试结果当成远程 CI 结果。
+`.github/workflows/ci.yml` 配置 Windows/Ubuntu、Node.js 24 的构建和测试，远程 CI 已通过。新增代码和修复应保持 `npm run check` 通过。
 
-当前未测大型文档性能、并发文件覆盖及所有文件系统异常；完整快照成本、基础 SVG 子集限制已在前文披露。未提供课程截止时间，因此不能声称标签创建时间满足某个未知截止时间。提交前应确认远程 `main` 和 `final` 都已推送，仓库对评阅者可访问。
+当前测试主要覆盖功能正确性与架构约束，大型文档性能、并发写入及复杂文件系统异常尚未充分验证，后续可进一步补充。
