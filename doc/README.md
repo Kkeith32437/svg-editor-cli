@@ -61,6 +61,7 @@ Get-Content -Encoding UTF8 examples/flowchart.commands | node --import tsx src/c
 ```plantuml
 @startuml
 skinparam componentStyle rectangle
+skinparam backgroundColor white
 package "cli" {
   [Main]
   [Tokenizer]

@@ -1,5 +1,6 @@
 @startuml
 skinparam componentStyle rectangle
+skinparam backgroundColor white
 package "cli" {
   [Main]
   [Tokenizer]
