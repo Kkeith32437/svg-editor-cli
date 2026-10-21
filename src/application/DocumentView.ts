@@ -15,6 +15,6 @@ export class DocumentView {
   }
   show(document: Document, id: string): string {
     const shape = document.find(id), parent = document.parent(shape);
-    return `${shape.type}#${id}  parent=${document.children.includes(shape) ? 'svg' : `g#${parent.id}`}\n${[...shape.attributes].map(([key, value]) => `  ${key}=${JSON.stringify(value)}`).join('\n')}`;
+    return [`${shape.type}#${id}  parent=${document.children.includes(shape) ? 'svg' : `g#${parent.id}`}`, shape.details()].filter(Boolean).join('\n');
   }
 }

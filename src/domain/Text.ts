@@ -5,5 +5,8 @@ export class Text extends Shape {
   override get content(): string { return this.get('text') ?? ''; }
   constructor(id: string) { super(id, 'text'); }
   move(dx: number, dy: number): void { this.shift('x', 'y', dx, dy); }
+  protected override geometrySummary(): string {
+    return `(${this.get('x') ?? 0},${this.get('y') ?? 0}) ${JSON.stringify(this.content)}`;
+  }
   copy(): Shape { return this.copyValues(new Text(this.id)); }
 }

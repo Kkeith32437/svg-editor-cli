@@ -13,12 +13,12 @@ export class History {
     if (this.blocked) throw new Error('undo not allowed after io command');
     const command = this.past.pop();
     if (!command) throw new Error('nothing to undo');
-    command.undo(); this.future.push(command); return 'edit undone';
+    const result = command.undo(); this.future.push(command); return result;
   }
   redo(): string {
     if (this.blocked) throw new Error('undo not allowed after io command');
     const command = this.future.pop();
     if (!command) throw new Error('nothing to redo');
-    command.redo(); this.past.push(command); return 'edit redone';
+    const result = command.redo(); this.past.push(command); return result;
   }
 }

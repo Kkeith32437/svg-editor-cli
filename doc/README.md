@@ -52,7 +52,11 @@ Get-Content -Encoding UTF8 examples/flowchart.commands | node --import tsx src/c
 | `examples/` | 可回放命令、输入文件和生成的 SVG | `flowchart.commands`、SVG 文件 |
 | `doc/` | 本提交文档 | `README.md` |
 
-组件图（PlantUML 源码；在支持 PlantUML 的预览器中渲染）：
+组件图：
+
+![模块组件图](architecture.svg)
+
+图的 [PlantUML 源文件](architecture.puml) 与导出的 SVG 一并保存，源码如下：
 
 ```plantuml
 @startuml
@@ -101,7 +105,7 @@ Commands --> [ShapeFactory]
 
 **Command（必选）**：`Command` 规定 `execute/undo/redo`；`CreateCommand`、`MoveCommand`、`GroupCommand` 等分别实现编辑行为。`Editor` 负责分发，`History` 调用命令并管理两个栈，不了解几何或树结构细节。一条编辑命令对应一个历史单元，分组多个对象也只入栈一次。命令失败不入栈，也不清空 redo 栈。
 
-**Memento（用于 Command 的状态恢复）**：`EditCommand` 执行前通过 `Document.copy()` 保存深拷贝，成功后保存执行结果；失败则恢复执行前文档。undo 恢复前快照，redo 恢复后快照，避免重做依赖外部可变状态。每条编辑的时间与快照内存开销均为 O(N)，历史共 O(H×N)。本阶段规模较小，先选择容易验证的完整快照；未来文档变大时再换成差量，不引入未用到的持久化历史框架。
+**Memento（用于 Command 的状态恢复）**：`EditCommand` 执行前通过 `Document.copy()` 保存深拷贝，成功后保存执行结果；失败则恢复执行前文档。undo 恢复前快照，redo 恢复后快照，避免重做依赖外部可变状态。一次完整快照的拷贝时间和内存开销为 O(N)，历史快照占用共 O(H×N)；具体编辑还包含节点查找和结构调整的开销。本阶段规模较小，先选择容易验证的完整快照；未来文档变大时再换成差量，不引入未用到的持久化历史框架。
 
 **Composite**：`Shape` 提供统一的 `move/scale/set/copy/children` 行为；`Rect/Circle/Ellipse/Line/Text` 为叶子，`Group` 为容器。`Group.move/scale` 递归调用子图形，编辑命令不逐个判断图形种类。几何属性保存在私有 Map 中，读出的属性和子列表是副本，修改走带校验的方法。id 和类型为只读字段，不能通过 `set` 更改。
 
@@ -152,7 +156,7 @@ Commands --> [ShapeFactory]
 - 删除容器包含整棵子树；撤销恢复原有父级和位置。
 - 显示命令及无参 canvas 不入历史栈。成功执行 init/read/save 或修改 canvas 后清空历史并禁止 undo/redo，下一次成功编辑重新启用；失败命令不改变文档、历史或默认路径。
 - save 首次需要路径；read 或 save 成功后记录默认路径，后续 save 可省略。文件写入先写同目录临时文件，再重命名替换，写入失败清理临时文件。
-- 成功编辑输出摘要；undo/redo 输出 `edit undone` / `edit redone`，tree/show 输出实际属性。错误由 CLI 统一转为 `error:` 前缀的单行，不中断后续输入。
+- 成功编辑输出摘要；undo/redo 以 `undone:` / `redone:` 标明被撤销或重做的具体操作，tree/show 按作业示例内联几何属性。错误由 CLI 统一转为 `error:` 前缀的单行，不中断后续输入。
 
 ### 外部 SVG 的支持边界
 
@@ -177,6 +181,7 @@ Commands --> [ShapeFactory]
 | 外部 SVG 审查 | 任意 viewBox 或根样式若被忽略，会改变实际图像 | 增加根属性和 viewBox 验证，对未支持的渲染语义报错；说明兼容边界 |
 | 补充验证 | 仅通过功能示例不足以约束依赖方向和白名单 | 新增静态 import 规则检查、所有类型属性测试和 SVG 边界测试，共 17 项通过 |
 | 示例回放 | 需要验证分组、中文文字、undo 与文件输出能连起来使用 | 回放 flowchart.commands，生成 8 个元素的 flowchart.svg，保留示例文件 |
+| 提交前验收 | 架构图源码在 GitHub 上不能直接显示，显示排版与作业示例存在差异 | 导出 PlantUML 组件图，统一 tree/show 几何格式，并增加错误信息与完整示例会话验收测试 |
 
 开发阶段对应 Git 提交：
 
@@ -206,7 +211,7 @@ Commands --> [ShapeFactory]
 
 ### 6.1 实际执行结果
 
-本地完成 `npm run check`：**TypeScript 严格编译通过，17 项测试全部通过，0 失败**。测试使用 Node.js 自带 test runner，经 tsx 执行。
+本地完成 `npm run check`：**TypeScript 严格编译通过，20 项测试全部通过，0 失败**。测试使用 Node.js 自带 test runner，经 tsx 执行。
 
 | 验证范围 | 主要依据 |
 | --- | --- |
@@ -220,6 +225,7 @@ Commands --> [ShapeFactory]
 | 文档操作 | 保存和读取、默认路径、canvas 读写、成功 IO 屏障、失败 IO 保留状态和历史 |
 | SVG 数据 | 六种类型及中文/特殊字符往返、唯一 id 预留、无效 XML/不支持特性拒绝 |
 | 真实 CLI | 子进程接受脚本，错误输出后继续执行，管道模式无提示符干扰 |
+| 作业验收 | 逐条核对约定错误信息、tree/show 格式，并回放第 6 节典型会话及提供的外部 SVG |
 
 另已实际回放 `examples/flowchart.commands`，验证生成的 XML 有 8 个图形元素。测试覆盖的是选取的代表场景，不宣称穷尽所有输入或百分之百覆盖率。
 

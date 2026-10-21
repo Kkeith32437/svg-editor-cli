@@ -54,6 +54,7 @@ export class Document {
     this.root.insert(group);
   }
   ungroup(id: string): void {
+    this.find(id);
     const group = this.container(id);
     const parent = this.parent(group);
     if (parent === this.root) throw new Error(`cannot ungroup top-level container: ${id}`);

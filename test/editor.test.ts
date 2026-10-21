@@ -42,7 +42,7 @@ test('no document and complete help', () => {
 test('all six shapes, float geometry, style omission and case-sensitive unique ids', () => {
   const f = new Fixture().init();
   for (const command of ['create g G', 'create rect r 1.5 2 3 4 in G', 'create circle c 1 2 3 red', 'create ellipse e 1 2 3 4', 'create line l 1 2 3 4 black', 'create text t 1 2 "中文 & <文本>"']) f.run(command);
-  assert.match(f.run('show r'), /x="1.5"/);
+  assert.match(f.run('show r'), /x=1.5/);
   assert.doesNotMatch(f.run('show r'), /fill=/);
   assert.match(f.run('show r'), /parent=g#G/);
   assert.throws(() => f.run('create g G'), /id already exists/);
@@ -56,11 +56,11 @@ test('nested Composite move and scale undo/redo as one unit', () => {
   ['create g outer', 'create g inner in outer', 'create rect r 10 20 30 40 in inner', 'create text t 5 6 "label" in inner', 'create line l 1 2 3 4 in outer'].forEach(line => f.run(line));
   const before = f.tree();
   f.run('move outer 2 3');
-  assert.match(f.run('show r'), /x="12"/);
-  assert.match(f.run('show l'), /x2="5"/);
+  assert.match(f.run('show r'), /x=12/);
+  assert.match(f.run('show l'), /x2=5/);
   f.run('scale outer 2');
   const after = f.tree();
-  assert.match(f.run('show r'), /width="60"/);
+  assert.match(f.run('show r'), /width=60/);
   f.run('undo'); f.run('undo'); assert.equal(f.tree(), before);
   f.run('redo'); f.run('redo'); assert.equal(f.tree(), after);
 });
@@ -71,7 +71,7 @@ test('failed edits preserve document and redo history, successful edits invalida
   for (const line of ['scale r 0', 'scale r -1', 'scale r NaN', 'set r width -5', 'set r id other', 'move r Infinity 1', 'create g r', 'delete missing', 'create g child in r', 'create g child in missing', 'group bad r missing']) {
     assert.throws(() => f.run(line)); assert.equal(f.tree(), before, line);
   }
-  f.run('redo'); assert.match(f.run('show r'), /x="6"/);
+  f.run('redo'); assert.match(f.run('show r'), /x=6/);
   f.run('undo'); f.run('set r fill blue'); assert.throws(() => f.run('redo'), /nothing to redo/);
 });
 
@@ -150,7 +150,7 @@ test('missing ids reserve all existing ids, duplicate ids and unsupported XML fa
 
 test('CLI processes script input, emits one-line errors and continues', () => {
   const result = spawnSync(process.execPath, ['--import', 'tsx', 'src/cli/Main.ts'], { cwd: process.cwd(), input: '# comment\ninit\ncreate rect r 1 2 3 4\nscale r 0\nshow r\n', encoding: 'utf8' });
-  assert.equal(result.status, 0, result.stderr); assert.match(result.stdout, /error: scale factor must be positive/); assert.match(result.stdout, /width="3"/); assert.doesNotMatch(result.stdout, /svg>/);
+  assert.equal(result.status, 0, result.stderr); assert.match(result.stdout, /error: scale factor must be positive/); assert.match(result.stdout, /width=3/); assert.doesNotMatch(result.stdout, /svg>/);
 });
 
 test('every shape supports its geometry whitelist and styles; other attributes fail', () => {
@@ -181,4 +181,53 @@ test('rejects unsupported root rendering semantics rather than silently changing
   assert.equal(codec.decode('<svg width="100" height="100" viewBox="0,0,100,100"/>').document.width, 100);
   const fallback = codec.decode('<svg><g id="box" data-kind="box"><rect id="part"/></g></svg>');
   assert.equal(fallback.document.find('box').type, 'g');
+});
+
+test('required error messages match the assignment and preserve the document', () => {
+  const f = new Fixture().init(); f.run('create rect r1 0 0 10 10'); f.run('create g scene'); f.run('create g child in scene');
+  const before = f.tree();
+  for (const [command, message] of [
+    ['create g r1', 'id already exists: r1'],
+    ['delete r9', 'no such shape: r9'],
+    ['ungroup r9', 'no such shape: r9'],
+    ['create g x in node9', 'no such container: node9'],
+    ['create g x in r1', 'not a container: r1'],
+    ['create hexagon x', 'unknown shape type: hexagon (is the plugin loaded?)'],
+    ['group bad child scene', 'cannot group a container into its own descendant: scene'],
+    ['ungroup scene', 'cannot ungroup top-level container: scene'],
+    ['scale r1 0', 'scale factor must be positive'],
+    ['scale r1 -2', 'scale factor must be positive'],
+    ['set r1 unknown 1', 'unknown attribute: unknown']
+  ]) {
+    assert.throws(() => f.run(command!), error => error instanceof Error && error.message === message, command);
+    assert.equal(f.tree(), before, command);
+  }
+});
+
+test('tree and show use the assignment geometry layout; history feedback identifies the edit', () => {
+  const f = new Fixture().init();
+  ['create g markers', 'create circle c1 100 100 20 red in markers', 'create rect box 200 80 60 60 #3366ff in markers', 'create text title 20 40 "My Diagram"', 'create line edge 0 1 2 3 black'].forEach(line => f.run(line));
+  assert.equal(f.run('tree markers'), 'g#markers\n├── circle#c1 cx=100 cy=100 r=20 fill=red\n└── rect#box x=200 y=80 w=60 h=60 fill=#3366ff');
+  assert.equal(f.run('show c1'), 'circle#c1  parent=g#markers\n  cx=100 cy=100 r=20\n  fill=red');
+  assert.match(f.tree(), /text#title \(20,40\) "My Diagram"/);
+  assert.match(f.tree(), /line#edge \(0,1\) -> \(2,3\) stroke=black/);
+  f.run('move markers 0 100');
+  assert.equal(f.run('undo'), 'undone: g#markers moved by (0,100)');
+  assert.equal(f.run('redo'), 'redone: g#markers moved by (0,100)');
+});
+
+test('assignment sample transcript and supplied external SVG complete end to end', () => {
+  const f = new Fixture();
+  const directory = mkdtempSync(join(tmpdir(), 'svg-editor-acceptance-'));
+  assert.equal(f.run('init 800 600'), 'canvas 800x600 created');
+  for (const command of ['create rect bg 0 0 800 600 #ffffff', 'create text title 20 40 "My Diagram"', 'create circle c1 100 100 20 red', 'create rect box 200 80 60 60 #3366ff', 'group markers c1 box']) f.run(command);
+  const original = f.tree(); f.run('move c1 30 0'); f.run('undo'); assert.equal(f.tree(), original);
+  f.run('redo'); assert.match(f.run('show c1'), /cx=130 cy=100 r=20/);
+  f.run('set title text "My Diagram v2"'); f.run('undo'); assert.match(f.run('show title'), /text="My Diagram"/);
+  f.run('delete box'); f.run('undo'); assert.match(f.run('show box'), /parent=g#markers/);
+  assert.match(f.run(`save "${join(directory, 'demo.svg')}"`), /\(5 elements\)/);
+  assert.throws(() => f.run('undo'), /undo not allowed after io command/);
+  assert.equal(f.run('read examples/import.svg'), 'warning: assigned id rect1 to unnamed <rect>\nread examples/import.svg (7 elements)');
+  assert.match(f.tree(), /svg \(400x300\)/); assert.match(f.tree(), /rect#rect1 x=0 y=0 w=400 h=300 fill=#ffffff/);
+  assert.match(f.run('tree g1'), /rect#r2 x=0 y=0 w=10 h=10/);
 });

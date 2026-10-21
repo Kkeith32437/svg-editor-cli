@@ -1,0 +1,40 @@
+@startuml
+skinparam componentStyle rectangle
+package "cli" {
+  [Main]
+  [Tokenizer]
+}
+package "application" {
+  [Editor]
+  [History]
+  [EditCommand / Concrete Commands] as Commands
+  [DocumentView]
+  interface SvgStorage
+}
+package "domain" {
+  [Document]
+  [Shape / Group / Leaves] as Shapes
+  [ShapeFactory]
+}
+package "infrastructure" {
+  [FileSvgStorage]
+  [SvgCodec]
+}
+[Main] --> [Tokenizer]
+[Main] --> [Editor]
+[Main] --> [FileSvgStorage] : composition root
+[Editor] --> [History]
+[Editor] --> Commands
+[Editor] --> [DocumentView]
+[Editor] --> SvgStorage
+[Editor] --> [Document]
+[History] --> Commands : Command interface
+Commands --> [Document]
+Commands --> [ShapeFactory]
+[Document] --> Shapes
+[ShapeFactory] --> Shapes
+[FileSvgStorage] ..|> SvgStorage
+[FileSvgStorage] --> [SvgCodec]
+[SvgCodec] --> [Document]
+[SvgCodec] --> [ShapeFactory]
+@enduml

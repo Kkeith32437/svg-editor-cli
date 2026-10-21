@@ -36,7 +36,19 @@ export abstract class Shape {
     for (const [key, value] of this.values) target.set(key, value);
     return target;
   }
+  protected geometrySummary(): string {
+    return this.geometry.map(key => `${key}=${this.get(key) ?? '0'}`).join(' ');
+  }
+  private styleSummary(): string {
+    return ['fill', 'stroke', 'stroke-width'].filter(key => this.values.has(key))
+      .map(key => `${key}=${this.get(key)}`).join(' ');
+  }
   summary(): string {
-    return `${this.type}#${this.id}${[...this.values].map(([key, value]) => ` ${key}=${JSON.stringify(value)}`).join('')}`;
+    return [`${this.type}#${this.id}`, this.geometrySummary(), this.styleSummary()].filter(Boolean).join(' ');
+  }
+  details(): string {
+    const geometry = this.geometry.map(key => `${key}=${this.get(key) ?? '0'}`).join(' ');
+    const content = this.content === undefined ? '' : `text=${JSON.stringify(this.content)}`;
+    return [geometry, this.styleSummary(), content].filter(Boolean).map(line => `  ${line}`).join('\n');
   }
 }
